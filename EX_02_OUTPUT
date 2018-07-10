@@ -1,0 +1,420 @@
+javeed@Javeed:~/spark-2.3.1-bin-hadoop2.7/bin$ ./pyspark
+Python 3.6.4 |Anaconda custom (64-bit)| (default, Jan 16 2018, 18:10:19) 
+[GCC 7.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+2018-07-06 23:19:08 WARN  Utils:66 - Your hostname, Javeed resolves to a loopback address: 127.0.1.1; using 192.168.0.102 instead (on interface wlp3s0)
+2018-07-06 23:19:08 WARN  Utils:66 - Set SPARK_LOCAL_IP if you need to bind to another address
+2018-07-06 23:19:09 WARN  NativeCodeLoader:62 - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+2018-07-06 23:19:10 WARN  Utils:66 - Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
+2018-07-06 23:19:10 WARN  Utils:66 - Service 'SparkUI' could not bind on port 4041. Attempting port 4042.
+2018-07-06 23:19:10 WARN  Utils:66 - Service 'SparkUI' could not bind on port 4042. Attempting port 4043.
+Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /__ / .__/\_,_/_/ /_/\_\   version 2.3.1
+      /_/
+
+Using Python version 3.6.4 (default, Jan 16 2018 18:10:19)
+SparkSession available as 'spark'.
+>>> #tagging session 3.1
+... from pyspark.sql import SparkSession
+>>> from pyspark.sql.functions import lag, when, isnull, sum, count, lit, avg, stddev
+>>> from pyspark.sql.window import Window
+>>> 
+>>> session = SparkSession.builder.appName("Manipulating Recommender Dataset with Apache Spark").getOrCreate()
+>>> sc = session.sparkContext
+>>> sc.setLogLevel("ERROR")
+>>> 
+>>> df = sc.textFile("/home/javeed/Desktop/ml-10m/tags.dat").map(lambda x: x.split('::')).map(lambda x: [int(x[0]), int(x[1]), x[2], int(x[3])]).toDF()
+>>> df.show()
++---+-----+--------------------+----------+
+| _1|   _2|                  _3|        _4|
++---+-----+--------------------+----------+
+| 15| 4973|          excellent!|1215184630|
+| 20| 1747|            politics|1188263867|
+| 20| 1747|              satire|1188263867|
+| 20| 2424|     chick flick 212|1188263835|
+| 20| 2424|               hanks|1188263835|
+| 20| 2424|                ryan|1188263835|
+| 20| 2947|              action|1188263755|
+| 20| 2947|                bond|1188263756|
+| 20| 3033|               spoof|1188263880|
+| 20| 3033|           star wars|1188263880|
+| 20| 7438|              bloody|1188263801|
+| 20| 7438|             kung fu|1188263801|
+| 20| 7438|           Tarantino|1188263801|
+| 21|55247|                   R|1205081506|
+| 21|55253|               NC-17|1205081488|
+| 25|   50|        Kevin Spacey|1166101426|
+| 25| 6709|         Johnny Depp|1162147221|
+| 31|   65|        buddy comedy|1188263759|
+| 31|  546|strangely compelling|1188263674|
+| 31| 1091|         catastrophe|1188263741|
++---+-----+--------------------+----------+
+only showing top 20 rows
+
+>>> 
+>>> df = df.select(df._1.alias("UserId"), df._2.alias("MovieId"),
+...                df._3.alias("Tag"), df._4.alias("TimeStamp"))
+>>> df.show()
++------+-------+--------------------+----------+
+|UserId|MovieId|                 Tag| TimeStamp|
++------+-------+--------------------+----------+
+|    15|   4973|          excellent!|1215184630|
+|    20|   1747|            politics|1188263867|
+|    20|   1747|              satire|1188263867|
+|    20|   2424|     chick flick 212|1188263835|
+|    20|   2424|               hanks|1188263835|
+|    20|   2424|                ryan|1188263835|
+|    20|   2947|              action|1188263755|
+|    20|   2947|                bond|1188263756|
+|    20|   3033|               spoof|1188263880|
+|    20|   3033|           star wars|1188263880|
+|    20|   7438|              bloody|1188263801|
+|    20|   7438|             kung fu|1188263801|
+|    20|   7438|           Tarantino|1188263801|
+|    21|  55247|                   R|1205081506|
+|    21|  55253|               NC-17|1205081488|
+|    25|     50|        Kevin Spacey|1166101426|
+|    25|   6709|         Johnny Depp|1162147221|
+|    31|     65|        buddy comedy|1188263759|
+|    31|    546|strangely compelling|1188263674|
+|    31|   1091|         catastrophe|1188263741|
++------+-------+--------------------+----------+
+only showing top 20 rows
+
+>>> 
+>>> 
+>>> 
+>>> 
+>>> 
+>>> 
+>>> #Tag session 3.2
+... tagging_session = Window.partitionBy('UserId').orderBy(['UserId', 'TimeStamp'])
+>>> 
+>>> df = df.withColumn("lagged", lag(df.TimeStamp).over(tagging_session))
+>>> df.show()
++------+-------+--------------------+----------+----------+
+|UserId|MovieId|                 Tag| TimeStamp|    lagged|
++------+-------+--------------------+----------+----------+
+|  1806|  43560|              comedy|1147983808|      null|
+|  1806|  43560|                kids|1147983808|1147983808|
+|  1806|   7018|            language|1172157899|1147983808|
+|  1806|   7152|              nudity|1176483953|1172157899|
+|  1806|   7152|                dark|1176483990|1176483953|
+|  1806|  44709|        heartwarming|1176485185|1176483990|
+|  1806|  44199|intelligent thriller|1176485297|1176485185|
+|  1806|  43936|               tense|1176485376|1176485297|
+|  1806|  43928|              stupid|1176485429|1176485376|
+|  1806|  42734|              clever|1176485536|1176485429|
+|  1806|  40583|       confused plot|1176485722|1176485536|
+|  1806|  37475|                slow|1176485915|1176485722|
+|  1806|  36527|                slow|1176485965|1176485915|
+|  1806|  48043|          weak story|1184762689|1176485965|
+|  1806|  48043|           dreamlike|1184762699|1184762689|
+|  1806|  48043|       disappointing|1184762776|1184762699|
+|  1806|  51834|     chick flick 212|1203867534|1184762776|
+|  1806|  55290|Very Strong Language|1204564122|1203867534|
+|  2040|   1377|              action|1189086212|      null|
+|  2040|   1377|              batman|1189086212|1189086212|
++------+-------+--------------------+----------+----------+
+only showing top 20 rows
+
+>>> df = df.withColumn("SessionTime", when(isnull(df.TimeStamp - df.lagged), 0).otherwise(df.TimeStamp - df.lagged))
+>>> 
+>>> 
+>>> df = df.withColumn("sessionTimeOut", when(df.SessionTime > (30 * 60), 1).otherwise(0))
+>>> df.show()
++------+-------+--------------------+----------+----------+-----------+--------------+
+|UserId|MovieId|                 Tag| TimeStamp|    lagged|SessionTime|sessionTimeOut|
++------+-------+--------------------+----------+----------+-----------+--------------+
+|  1806|  43560|              comedy|1147983808|      null|          0|             0|
+|  1806|  43560|                kids|1147983808|1147983808|          0|             0|
+|  1806|   7018|            language|1172157899|1147983808|   24174091|             1|
+|  1806|   7152|              nudity|1176483953|1172157899|    4326054|             1|
+|  1806|   7152|                dark|1176483990|1176483953|         37|             0|
+|  1806|  44709|        heartwarming|1176485185|1176483990|       1195|             0|
+|  1806|  44199|intelligent thriller|1176485297|1176485185|        112|             0|
+|  1806|  43936|               tense|1176485376|1176485297|         79|             0|
+|  1806|  43928|              stupid|1176485429|1176485376|         53|             0|
+|  1806|  42734|              clever|1176485536|1176485429|        107|             0|
+|  1806|  40583|       confused plot|1176485722|1176485536|        186|             0|
+|  1806|  37475|                slow|1176485915|1176485722|        193|             0|
+|  1806|  36527|                slow|1176485965|1176485915|         50|             0|
+|  1806|  48043|          weak story|1184762689|1176485965|    8276724|             1|
+|  1806|  48043|           dreamlike|1184762699|1184762689|         10|             0|
+|  1806|  48043|       disappointing|1184762776|1184762699|         77|             0|
+|  1806|  51834|     chick flick 212|1203867534|1184762776|   19104758|             1|
+|  1806|  55290|Very Strong Language|1204564122|1203867534|     696588|             1|
+|  2040|   1377|              action|1189086212|      null|          0|             0|
+|  2040|   1377|              batman|1189086212|1189086212|          0|             0|
++------+-------+--------------------+----------+----------+-----------+--------------+
+only showing top 20 rows
+
+>>> 
+>>> tagging_session = Window.partitionBy("UserId").orderBy('TimeStamp')
+>>> df = df.withColumn("SessionId", sum(df.sessionTimeOut).over(tagging_session))
+>>> df.orderBy('MovieId').show()
++------+-------+--------------------+----------+----------+-----------+--------------+---------+
+|UserId|MovieId|                 Tag| TimeStamp|    lagged|SessionTime|sessionTimeOut|SessionId|
++------+-------+--------------------+----------+----------+-----------+--------------+---------+
+| 64408|      1|               Pixar|1159534063|1159534061|          2|             0|        0|
+| 28122|      1|            children|1225194339|1225194329|         10|             0|        0|
+| 10555|      1|National Film Reg...|1228239042|1228238895|        147|             0|      801|
+| 43213|      1|                 buy|1137440588|1137440588|          0|             0|        0|
+| 28122|      1|           animation|1225194325|1225193862|        463|             0|        0|
+| 30836|      1|              clever|1144451329|1144451295|         34|             0|        0|
+| 43213|      1|                 avi|1137440588|1137440575|         13|             0|        0|
+| 59092|      1|             classic|1137117317|1137117316|          1|             0|        0|
+| 59092|      1|               pixar|1137117317|1137117317|          0|             0|        0|
+| 28122|      1|              Disney|1225194329|1225194327|          2|             0|        0|
+| 28122|      1|               Pixar|1225194327|1225194325|          2|             0|        0|
+| 47780|      1|               pixar|1152405392|      null|          0|             0|        0|
+|  2030|      1|               Pixar|1162989834|1162989826|          8|             0|        0|
+| 47780|      1|           animation|1152405430|1152405423|          7|             0|        0|
+| 69388|      1|  villian hurts toys|1216681687|1216681568|        119|             0|       47|
+| 64294|      1|               pixar|1185287332|1185287328|          4|             0|        0|
+| 17647|      1|           animation|1140064168|1140063873|        295|             0|        2|
+| 43102|      1|            Engaging|1180085428|1180085407|         21|             0|        4|
+| 23858|      1|            the boys|1137115175|1137115082|         93|             0|        0|
+| 64294|      1|           animation|1185287328|1185287299|         29|             0|        0|
++------+-------+--------------------+----------+----------+-----------+--------------+---------+
+only showing top 20 rows
+
+>>> 
+>>> df = df.withColumn("SessionId", df.SessionId + lit(1))
+>>> df.show()
++------+-------+--------------------+----------+----------+-----------+--------------+---------+
+|UserId|MovieId|                 Tag| TimeStamp|    lagged|SessionTime|sessionTimeOut|SessionId|
++------+-------+--------------------+----------+----------+-----------+--------------+---------+
+|  1806|  43560|              comedy|1147983808|      null|          0|             0|        1|
+|  1806|  43560|                kids|1147983808|1147983808|          0|             0|        1|
+|  1806|   7018|            language|1172157899|1147983808|   24174091|             1|        2|
+|  1806|   7152|              nudity|1176483953|1172157899|    4326054|             1|        3|
+|  1806|   7152|                dark|1176483990|1176483953|         37|             0|        3|
+|  1806|  44709|        heartwarming|1176485185|1176483990|       1195|             0|        3|
+|  1806|  44199|intelligent thriller|1176485297|1176485185|        112|             0|        3|
+|  1806|  43936|               tense|1176485376|1176485297|         79|             0|        3|
+|  1806|  43928|              stupid|1176485429|1176485376|         53|             0|        3|
+|  1806|  42734|              clever|1176485536|1176485429|        107|             0|        3|
+|  1806|  40583|       confused plot|1176485722|1176485536|        186|             0|        3|
+|  1806|  37475|                slow|1176485915|1176485722|        193|             0|        3|
+|  1806|  36527|                slow|1176485965|1176485915|         50|             0|        3|
+|  1806|  48043|          weak story|1184762689|1176485965|    8276724|             1|        4|
+|  1806|  48043|           dreamlike|1184762699|1184762689|         10|             0|        4|
+|  1806|  48043|       disappointing|1184762776|1184762699|         77|             0|        4|
+|  1806|  51834|     chick flick 212|1203867534|1184762776|   19104758|             1|        5|
+|  1806|  55290|Very Strong Language|1204564122|1203867534|     696588|             1|        6|
+|  2040|   1377|              action|1189086212|      null|          0|             0|        1|
+|  2040|   1377|              batman|1189086212|1189086212|          0|             0|        1|
++------+-------+--------------------+----------+----------+-----------+--------------+---------+
+only showing top 20 rows
+
+>>> 
+>>> 
+>>> 
+>>> 
+>>> 
+>>> 
+>>> 
+>>> # session ststistics 3.3.1 (frequencies)
+... session_stats = df.groupBy(['UserId', 'SessionId']).agg(count('SessionId').alias('Frequency'))
+>>> session_stats.show()
++------+---------+---------+
+|UserId|SessionId|Frequency|
++------+---------+---------+
+|  1806|        1|        2|
+|  1806|        2|        1|
+|  1806|        3|       10|
+|  1806|        4|        3|
+|  1806|        5|        1|
+|  1806|        6|        1|
+|  2040|        1|        2|
+| 15437|        1|        1|
+| 15663|        1|        1|
+| 15846|        1|        9|
+| 18295|        1|        1|
+| 18295|        2|        3|
+| 18730|        1|        1|
+| 19141|        1|        1|
+| 25649|        1|        1|
+| 25649|        2|        1|
+| 25649|        3|        1|
+| 25649|        4|        1|
+| 27919|        1|        1|
+| 27919|        2|        2|
++------+---------+---------+
+only showing top 20 rows
+
+>>> 
+>>> 
+>>> 
+>>> 
+>>> 
+>>> # average and standard deviation of each user 3.3.2
+... avg_stddev = tagging_session.groupBy(['UserId']).agg(avg('Frequency').alias('Average'), stddev('Frequency').alias('Standard_dev'))
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+AttributeError: 'WindowSpec' object has no attribute 'groupBy'
+>>> avg_stddev.show()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'avg_stddev' is not defined
+>>> 
+>>> 
+>>> 
+>>> # average and standard deviation of each user 3.3.2
+... avg_stddev = session_stats.groupBy(['UserId']).agg(avg('Frequency').alias('Average'), stddev('Frequency').alias('Standard_dev'))
+>>> avg_stddev.show()
++------+-------+------------------+
+|UserId|Average|      Standard_dev|
++------+-------+------------------+
+|  1806|    3.0| 3.521363372331802|
+|  2040|    2.0|               NaN|
+| 15437|    1.0|               NaN|
+| 15663|    1.0|               NaN|
+| 15846|    9.0|               NaN|
+| 18295|    2.0|1.4142135623730951|
+| 18730|    1.0|               NaN|
+| 19141|    1.0|               NaN|
+| 25649|    1.0|               0.0|
+| 27919|    1.5|0.7071067811865476|
+| 29018|    1.0|               NaN|
+| 31156|    1.0|               NaN|
+| 37098|    1.0|               NaN|
+| 39104|    1.0|               NaN|
+| 39713|    1.5|0.7071067811865476|
+| 48280|    2.0|               0.0|
+| 50049|    2.0|               NaN|
+| 55700|    1.0|               NaN|
+| 60016|    1.0|               NaN|
+| 60738|    7.0|               NaN|
++------+-------+------------------+
+only showing top 20 rows
+
+>>> 
+>>> 
+>>> 
+>>> 
+>>> 
+>>> # Frequency across the users 3.3.3
+... f_across_user = tagging_session.groupBy().agg(
+...       avg('Frequency').alias('Average'),
+...        stddev('Frequency').alias('StdDev')).collect()
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+AttributeError: 'WindowSpec' object has no attribute 'groupBy'
+>>> f_across_user.show()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'f_across_user' is not defined
+>>> 
+>>> 
+>>> 
+>>> 
+>>> # Frequency across the users 3.3.3
+... f_across_user = session_stats.groupBy().agg(
+...       avg('Frequency').alias('Average'),
+...        stddev('Frequency').alias('StdDev')).collect()
+>>> f_across_user.show()                                                        
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'list' object has no attribute 'show'
+>>> 
+>>> 
+>>> 
+>>> # Frequency across the users 3.3.3
+... f_across_user = session_stats.groupBy().agg(
+...       avg('Frequency').alias('Average'),
+...        stddev('Frequency').alias('StdDev')).collect()
+>>> print(f_across_user)
+[Row(Average=7.300084014358817, StdDev=22.26429305026497)]
+>>> 
+>>> 
+>>> 
+>>> 
+>>> # mean more than two standard deviation 2.2.4
+... stat_a.filter(stat_a['Average'] > 2 * stat[0][0] + stat[0][1]).show()
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+NameError: name 'stat_a' is not defined
+>>> 
+>>> 
+>>> 
+>>> # mean more than two standard deviation 2.2.4
+... avg_stddev.filter(avg_stddev['Average'] > 2 * stat[0][0] + stat[0][1]).show()
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+NameError: name 'stat' is not defined
+>>> 
+>>> 
+>>> 
+>>> # mean more than two standard deviation 2.2.4
+... statistics = tagging_frequency.groupBy().agg(avg('Frequency').alias('Average'), stddev('Frequency').alias('StdDev')).collect()
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+NameError: name 'tagging_frequency' is not defined
+>>> print(stat)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'stat' is not defined
+>>> avg_stddev.filter(avg_stddev['Average'] > 2 * statistics[0][0] + statistics[0][1]).show()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'statistics' is not defined
+>>> 
+>>> 
+>>> 
+>>> # mean more than two standard deviation 2.2.4
+... statistics = tagging_frequency.groupBy().agg(avg('Frequency').alias('Average'), stddev('Frequency').alias('StdDev')).collect()
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+NameError: name 'tagging_frequency' is not defined
+>>> print(statistics)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'statistics' is not defined
+>>> avg_stddev.filter(avg_stddev['Average'] > 2 * statistics[0][0] + statistics[0][1]).show()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'statistics' is not defined
+>>> 
+>>> 
+>>> 
+>>> 
+>>> # mean more than two standard deviation 2.2.4
+... statistics = session_stats.groupBy().agg(avg('Frequency').alias('Average'), stddev('Frequency').alias('StdDev')).collect()
+>>> print(statistics)                                                           
+[Row(Average=7.300084014358817, StdDev=22.26429305026497)]
+>>> avg_stddev.filter(avg_stddev['Average'] > 2 * statistics[0][0] + statistics[0][1]).show()
++------+------------------+------------------+
+|UserId|           Average|      Standard_dev|
++------+------------------+------------------+
+| 23110|              41.0| 94.42633813366551|
+|  2030|              72.0|               NaN|
+| 20729|            52.875| 83.38797018412531|
+| 55841|              37.0|               NaN|
+| 44049|              57.0|               NaN|
+| 55590|              42.0|               NaN|
+|  9117|              37.0| 46.66904755831214|
+| 61519|             128.0|103.23759005323593|
+| 57022|              82.0|               NaN|
+| 29850|53.333333333333336| 87.17989064763348|
+| 11114|             256.0|               NaN|
+| 17044|              64.0|  70.8660708661063|
+| 34405|              42.0|45.528013354417304|
+| 37216|              44.0| 74.47818472546173|
+| 48337|              37.0|               NaN|
+| 63347|              60.5|107.13387263917359|
+| 33866| 79.33333333333333| 97.12020043911222|
+| 16289|              74.0|               NaN|
+| 36151| 71.33333333333333| 63.51640208114227|
+| 65436|170.33333333333334| 293.2939367483299|
++------+------------------+------------------+
+only showing top 20 rows
+
+>>> 
+
